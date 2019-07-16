@@ -18,19 +18,19 @@ from utils import *
 
 parser = argparse.ArgumentParser(description='Semantic aware super-resolution')
 
-parser.add_argument('--dataDir', default='./data', help='dataset directory')
+parser.add_argument('--dataDir', default='F:\DIV2K\DIV2K_train_HR', help='dataset directory')
 parser.add_argument('--saveDir', default='./result', help='datasave directory')
 parser.add_argument('--load', default= 'model_name', help='save result')
 
 parser.add_argument('--model_name', default= 'RDN', help='model to select')
 parser.add_argument('--finetuning', default=False, help='finetuning the training')
-parser.add_argument('--need_patch', default=False, help='get patch form image')
+parser.add_argument('--need_patch', default=True, help='get patch form image')
 
 parser.add_argument('--nDenselayer', type=int, default=6, help='nDenselayer of RDB')
 parser.add_argument('--growthRate', type=int, default=32, help='growthRate of dense net')
 parser.add_argument('--nBlock', type=int, default=16, help='number of RDB block')
 parser.add_argument('--nFeat', type=int, default=64,  help='number of feature maps')
-parser.add_argument('--nChannel', type=int, default=3, help='number of color channels to use')
+parser.add_argument('--nChannel', type=int, default=1, help='number of color channels to use')
 parser.add_argument('--patchSize', type=int, default=96,  help='patch size')
 
 parser.add_argument('--nThreads', type=int, default=3, help='number of threads for data loading')
@@ -84,10 +84,16 @@ def set_lr(args, epoch, optimizer):
 def train(args):
 
 	#  select network
+	print(args.model_name, '++')
 	if args.model_name == 'RDN':
 		my_model = model.RDN(args)
 	my_model.apply(weights_init_kaiming)
+
+	ngpu = 2
+	if (ngpu > 1):
+		my_model = nn.DataParallel(my_model, list(range(ngpu)))
 	my_model.cuda()
+
 	save = saveData(args)
 	# fine-tuning or retrain
 	if args.finetuning:
@@ -102,22 +108,24 @@ def train(args):
 		learning_rate = set_lr(args, epoch, optimizer)
 		total_loss_ = 0
 		L1_loss_ = 0
-		for batch, (im_lr, im_hr) in enumerate(dataloader):
-			im_lr = Variable(im_lr.cuda(), volatile=False)
-			im_hr = Variable(im_hr.cuda())
+		for batch, (im_in, im_target) in enumerate(dataloader):
+			im_in = Variable(im_in.cuda(), volatile=False)
+			im_target = Variable(im_target.cuda())
 			my_model.zero_grad()
-			output = my_model(im_lr)
-			L1_loss = L1_lossfunction(output, im_hr)
+			output = my_model(im_in)
+			L1_loss = L1_lossfunction(output, im_target)
 			total_loss = L1_loss 
 			total_loss.backward()
 			optimizer.step()
-			L1_loss_ += L1_loss.data.cpu().numpy()[0] 
-			total_loss_ += L1_loss.data.cpu().numpy()[0] 
+			#L1_loss_ += L1_loss.data.cpu().numpy()[0]
+			L1_loss_ += L1_loss
+			#total_loss_ += L1_loss.data.cpu().numpy()[0]
+			total_loss_ += L1_loss
 		L1_loss_ = L1_loss_ / (batch + 1)
 		total_loss_ = total_loss_ / (batch + 1)
 
-		if (epoch+1) % 10 == 0:
-			log = "[{} / {}] \tLearning_rate: {}\t total_loss: {:.4f}\t L2_loss: {:.4f}".format(epoch+1, 
+		if (epoch+1) % 1 == 0:
+			log = "[{} / {}] \tLearning_rate: {}\t total_loss: {:.4f}\t L1_loss: {:.4f}".format(epoch+1,
 							args.epochs, learning_rate, total_loss_, L1_loss_)
 			print(log)
 			save.save_log(log)

@@ -79,10 +79,9 @@ class RDN(nn.Module):
         FdLF = self.GFF_1x1(FF)         
         FGF = self.GFF_3x3(FdLF)
         FDF = FGF + F_
-        us = self.conv_up(FDF)
-        us = self.upsample(us)
-
-        output = self.conv3(us)
-
+        #us = self.conv_up(FDF)
+        #us = self.upsample(us)
+        us = self.conv3(FDF)
+        output = us + x
 
         return output
