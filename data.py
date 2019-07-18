@@ -12,11 +12,24 @@ def RGB_np2Tensor(imgTar):
     return imgTar
 
 def augment(imgTar):
-    if random.random() < 0.3:
-        imgTar = imgTar[:, ::-1, :]
-    if random.random() < 0.3:
-        imgTar = imgTar[::-1, :, :]
-    return imgTar
+    mode = random.randint(0,7)
+    # data augmentation
+    if mode == 0:
+        return imgTar
+    elif mode == 1:
+        return np.flipud(imgTar)
+    elif mode == 2:
+        return np.rot90(imgTar)
+    elif mode == 3:
+        return np.flipud(np.rot90(imgTar))
+    elif mode == 4:
+        return np.rot90(imgTar, k=2)
+    elif mode == 5:
+        return np.flipud(np.rot90(imgTar, k=2))
+    elif mode == 6:
+        return np.rot90(imgTar, k=3)
+    elif mode == 7:
+        return np.flipud(np.rot90(imgTar, k=3))
 
 def getPatch(imgTar, args, scale):
     (ih, iw, c) = imgTar.shape
